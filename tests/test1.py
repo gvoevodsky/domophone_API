@@ -6,7 +6,7 @@ def change_bool(dictionary, key):  # u can play with this func
     if dictionary[key] is True:
         dictionary[key] = False
     elif dictionary[key] is False:
-        dictionary[key] = False
+        dictionary[key] = True
     else:
         print('ERROR', dictionary, key)
     return dictionary[key]
@@ -66,6 +66,8 @@ def test_main(io_object):
     print(type(json_dict))
 
     revert_bool_recoursion(io_object, json_dict, api_menu='configuration')
+
+
     response = io_object.send_request(method='GET', api_menu='configuration', data=None)
     json_dict = response.json()
     print(json_dict)
