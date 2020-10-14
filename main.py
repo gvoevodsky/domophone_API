@@ -1,8 +1,12 @@
-import requests
-import base64
 import argparse
+import base64
 import importlib
 import sys
+import time
+
+import requests
+
+import logs
 
 parser = argparse.ArgumentParser(description='WEB API DOMO-PHONE')
 parser.add_argument('--device', help='Device configuration')
@@ -11,8 +15,8 @@ args = parser.parse_known_args(sys.argv)[0]
 
 params = args.device.split(':')
 
-print(params)  #TODO add logs
-
+logs.logger.debug(params)
+logs.logger.debug('-' * 100)
 
 session = requests.Session()
 session.verify = False
@@ -27,13 +31,55 @@ class WebApiAdapter:
         self.login = device_parameters[2]
         self.password = device_parameters[3]
         self.api_version = device_parameters[4]
-        encoded_login_password = base64.b64encode(f'{self.login}:{self.password}'.encode("UTF-8")).decode("UTF-8")
-        self.headers = {'Authorization': f'Basic {encoded_login_password}',
+        self.encoded_login_password = base64.b64encode(f'{self.login}:{self.password}'.encode("UTF-8")).decode("UTF-8")
+        self.headers = {'Authorization': f'Basic {self.encoded_login_password}',
                         'Content-Type': 'application/json'}  # TODO make sure this params doesnt change
 
     def send_request(self, method, data, api_menu='', index=''):
         url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}/{index}'
         request = self.session.request(method=method, url=url, headers=self.headers, data=data)
+        logs.logger.debug(f'{method}/{api_menu}/{index}:   ')
+        if request.status_code in [200, 201, 202,
+                                   203]:  # TODO нужен более правильный метод обработки пустых ответов с сервера
+            logs.logger.debug(request)
+            logs.logger.debug(request.json())
+        else:
+            logs.logger.debug(request)
+        return request
+
+    def send_request_hard_demo(self, method, data, api_menu='', index=''):  # TODO доделать метод
+        try:
+            responce = self.send_request(method, data, api_menu='', index='')
+        except requests.exceptions.ChunkedEncodingError:
+            try:
+                logs.logger.warning(
+                    f'FIRST ChunkedEncodingError for method:{method} , {api_menu}/{index}')
+                time.sleep(1)
+                responce = self.send_request(method, data, api_menu='', index='')
+            except requests.exceptions.ChunkedEncodingError:
+                logs.logger.error(
+                    f'SECOND ChunkedEncodingError for method:{method} , {api_menu}/{index}')
+                self.session = requests.Session()
+                self.session.verify = False
+                time.sleep(10)
+                responce = self.send_request(method, data, api_menu='', index='')
+        return responce
+
+    def send_request_hard(self, method, data, api_menu='', index=''):
+        url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}/{index}'
+        try:
+            request = self.session.request(method=method, url=url, headers=self.headers, data=data)
+        except requests.exceptions.ChunkedEncodingError:
+            logs.logger.warning(f'ChunkedEncodingError for method:{method} , {api_menu}/{index}')
+            time.sleep(5)
+            request = self.session.request(method=method, url=url, headers=self.headers, data=data)
+        logs.logger.debug(f'{method}/{api_menu}/{index}:   ')
+        if request.status_code in [200, 201, 202,
+                                   203]:  # TODO нужен более правильный метод обработки пустых ответов с сервера
+            logs.logger.debug(request)
+            logs.logger.debug(request.json())
+        else:
+            logs.logger.debug(request)
         return request
 
 
