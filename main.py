@@ -23,6 +23,13 @@ session.verify = False
 
 
 class WebApiAdapter:
+    """
+    Parser examples:
+    --device http:192.168.8.254:admin:admin:v1 --create_and_check_apartment
+    --device http:192.168.8.254:admin:admin:v1 --test get_to_apartments
+    --device http:192.168.8.254:admin:admin:v1 --test change_bool_in_configuration
+    """
+
     def __init__(self, device_parameters):
         self.session = requests.Session()
         self.session.verify = False
@@ -36,6 +43,13 @@ class WebApiAdapter:
                         'Content-Type': 'application/json'}  # TODO make sure this params doesnt change
 
     def send_request(self, method, data, api_menu='', index=''):
+        """
+        :param method: GET, POST, PUT, DELETE
+        :param data: Json dict or None
+        :param api_menu: 'configuration' or another
+        :param index:
+        :return: response json, if json is empty returns request status code
+        """
         url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}/{index}'
         request = self.session.request(method=method, url=url, headers=self.headers, data=data)
         logs.logger.debug(f'{method}/{api_menu}/{index}:   ')
@@ -66,6 +80,14 @@ class WebApiAdapter:
         return responce
 
     def send_request_hard(self, method, data, api_menu='', index=''):
+        """
+        Same as send_request, but checking response for ChunkedEncodingError, if it raises send same request.
+        :param method:
+        :param data:
+        :param api_menu:
+        :param index:
+        :return:
+        """
         url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}/{index}'
         try:
             request = self.session.request(method=method, url=url, headers=self.headers, data=data)
