@@ -70,7 +70,7 @@ def create_random_params_for_apart(apart_id):
     result = {'id': str(apart_id),
               'sip': {'enabled': random_bool(),
                       'video_call': random_bool(),
-                      'phone_numbers': random_list(5, 5, 3, 20),  # TODO make random length of string
+                      'phone_numbers': random_list(5, 5, 3, 20),
                       'analog': random_bool(),
                       'call_method': str(random.choice([1, 2, 3]))},
               'access_code': get_random_string(length_min=4, length_max=6, sample_letters='0123456789'),
@@ -82,7 +82,7 @@ def create_random_params_for_apart(apart_id):
 
 def create_apartment(io_object, apart_id, apart_data_for_post, apart_data_for_put):
     """
-    Sending 4 requests with delay: GET -> DELETE (if get returns 200 code) -> POST(apart_data_for_post) ->
+    Sending 5 requests with delay: GET -> DELETE (if get returns 200 code) -> POST(apart_data_for_post) ->
     -> PUT(apart_data_for_put) -> GET
     :param io_object: WebApiAdapter from main.py
     :param apart_id: apartment number
@@ -92,13 +92,11 @@ def create_apartment(io_object, apart_id, apart_data_for_post, apart_data_for_pu
     """
     time_between_requests = 0.01
 
-    response = io_object.send_request_hard(method='GET', api_menu='apartments', index=str(apart_id),
-                                           data=None)
+    response = io_object.send_request_hard(method='GET', api_menu='apartments', index=str(apart_id))
     time.sleep(time_between_requests)
 
     if response.status_code in [200, 201, 202, 203]:
-        io_object.send_request_hard(method='DELETE', api_menu='apartments', index=str(apart_id),
-                                    data=None)
+        io_object.send_request_hard(method='DELETE', api_menu='apartments', index=str(apart_id))
         time.sleep(time_between_requests)
     else:
         pass
@@ -107,12 +105,12 @@ def create_apartment(io_object, apart_id, apart_data_for_post, apart_data_for_pu
                                 data=json.dumps(apart_data_for_post))
     time.sleep(time_between_requests)
 
+    logs.logger.debug(json.dumps(apart_data_for_put))
     io_object.send_request_hard(method='PUT', api_menu='apartments', index=str(apart_id), data=json.dumps(
         apart_data_for_put))
     time.sleep(time_between_requests)
 
-    response = io_object.send_request_hard(method='GET', api_menu='apartments', index=str(apart_id),
-                                           data=None)
+    response = io_object.send_request_hard(method='GET', api_menu='apartments', index=str(apart_id))
     time.sleep(time_between_requests)
     return response
 
@@ -126,8 +124,8 @@ def test_main(io_object):
     """
     list_of_apart_data = []
     apartment_from = 1
-    apartment_to = 50
-    apartment_list = range(apartment_from, apartment_to)
+    apartment_to = 3
+    apartment_list = range(apartment_from, apartment_to + 1)
     for apart_id in apartment_list:
         list_of_apart_data.append(
             (apart_id, create_random_params_for_apart(apart_id),
@@ -135,12 +133,15 @@ def test_main(io_object):
 
     for i in list_of_apart_data:
         response = create_apartment(io_object, i[0], apart_data_for_post=i[1], apart_data_for_put=i[2])
-        # TODO сделать проверку соответсвия последнего GET с PUT
+        # TODO сделать проверку соответсвия последнего GET с PUT, проблема с перемешанным списком дверей
+
+    all_keys = io_object.send_request_hard(method='GET', api_menu='heap', index='rfids')
+
+    all_codes = io_object.send_request_hard(method='GET', api_menu='heap', index='codes')
 
     logs.logger.info(f'Apartments from {apartment_from} to {apartment_to} set. Starting to Delete...')
 
     for apart_id in apartment_list:
-        io_object.send_request_hard(method='DELETE', api_menu='apartments', index=str(apart_id),
-                                    data=None)
+        io_object.send_request_hard(method='DELETE', api_menu='apartments', index=str(apart_id))
     logs.logger.info(f'Apartments deleted')
     return True

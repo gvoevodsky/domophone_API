@@ -1,6 +1,7 @@
 import argparse
 import base64
 import importlib
+import json
 import sys
 import time
 
@@ -42,7 +43,7 @@ class WebApiAdapter:
         self.headers = {'Authorization': f'Basic {self.encoded_login_password}',
                         'Content-Type': 'application/json'}  # TODO make sure this params doesnt change
 
-    def send_request(self, method, data, api_menu='', index=''):
+    def send_request(self, method, data=None, api_menu='', index=''):
         """
         :param method: GET, POST, PUT, DELETE
         :param data: Json dict or None
@@ -61,7 +62,7 @@ class WebApiAdapter:
             logs.logger.debug(request)
         return request
 
-    def send_request_hard_demo(self, method, data, api_menu='', index=''):  # TODO доделать метод
+    def send_request_hard_demo(self, method, data=None, api_menu='', index=''):  # TODO доделать метод. через декоратор?
         try:
             responce = self.send_request(method, data, api_menu='', index='')
         except requests.exceptions.ChunkedEncodingError:
@@ -79,16 +80,21 @@ class WebApiAdapter:
                 responce = self.send_request(method, data, api_menu='', index='')
         return responce
 
-    def send_request_hard(self, method, data, api_menu='', index=''):
+    def send_request_hard(self, method, data=None, api_menu='', index='', pretty=False):
         """
         Same as send_request, but checking response for ChunkedEncodingError, if it raises send same request.
         :param method:
         :param data:
         :param api_menu:
         :param index:
+        :param pretty: if True -> print beautiful json
         :return:
         """
-        url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}/{index}'
+        if index == '':
+            url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}'
+        else:
+            url = f'{self.protocol}://{self.host}/cgi-bin/luci/;stok=nateks/{self.login}/intercom/api/{self.api_version}/{api_menu}/{index}'
+
         try:
             request = self.session.request(method=method, url=url, headers=self.headers, data=data)
         except requests.exceptions.ChunkedEncodingError:
@@ -99,7 +105,10 @@ class WebApiAdapter:
         if request.status_code in [200, 201, 202,
                                    203]:  # TODO нужен более правильный метод обработки пустых ответов с сервера
             logs.logger.debug(request)
-            logs.logger.debug(request.json())
+            if pretty is False:
+                logs.logger.debug(request.json())
+            else:
+                logs.logger.debug(json.dumps(request.json(), indent=4, sort_keys=True))  # pretty
         else:
             logs.logger.debug(request)
         return request
